@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"github.com/hl662/photo-inspo-backend/internal/authentication"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
@@ -13,37 +13,12 @@ import (
 	"time"
 )
 
-type User struct {
-	Username string `json:"username,omitempty" validate:"required"`
-	Password string `json:"password,omitempty" validate:"required"`
-}
-
-var client *mongo.Client
-
-func SignUpEndpoint(c *gin.Context) {
-	type responseJSON struct {
-		UserToken primitive.ObjectID `json:"userToken,omitempty" validate:"required"`
-	}
-	var newUser User
-
-	err := c.BindJSON(&newUser)
-	if err != nil {
-		// Send back internal server error with a message
-		return
-	}
-	userCollection := client.Database("photoInspo").Collection("Users")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	result, err := userCollection.InsertOne(ctx, newUser)
-	if err != nil {
-		// return bad json.
-		return
-	}
-	c.JSON(200, responseJSON{UserToken: result.InsertedID.(primitive.ObjectID)})
-}
 func main() {
-	atlasURI := fmt.Sprintf("mongodb+srv://%s:%s@photoinspo.pa7r9.mongodb.net/%s?retryWrites=true&w=majority", os.Getenv("mongoUsr"), os.Getenv("mongoPwd"), os.Getenv("mongoDBName"))
 	var err error
+	var client *mongo.Client
+	router := gin.Default()
+	atlasURI := fmt.Sprintf("mongodb+srv://%s:%s@photoinspo.pa7r9.mongodb.net/%s?retryWrites=true&w=majority", os.Getenv("mongoUsr"), os.Getenv("mongoPwd"), os.Getenv("mongoDBName"))
+
 	client, err = mongo.NewClient(options.Client().ApplyURI(atlasURI))
 	if err != nil {
 		log.Fatal(err)
@@ -54,13 +29,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	router := gin.Default()
+	apiHandler := new(authentication.APIHandler)
+	apiHandler.MongoClient = client
 	router.GET("/hello", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"message": "World",
 		})
 	})
-	router.POST("/signup", SignUpEndpoint)
+	router.POST("/signup", apiHandler.SignupEndpoint)
 	err = router.Run()
 	if err != nil {
 		log.Fatal(err)
