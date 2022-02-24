@@ -37,6 +37,8 @@ func main() {
 		})
 	})
 	router.POST("/signup", apiHandler.SignupEndpoint)
+	router.GET("/login", apiHandler.SigninEndpoint)
+
 	err = router.Run()
 	if err != nil {
 		log.Fatal(err)
