@@ -29,15 +29,18 @@ func (this *APIHandler) SignupEndpoint(c *gin.Context) {
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 	}
-	newUser.Password = EncryptAES(newUser.Password)
 	userCollection := this.MongoClient.Database("photoInspo").Collection("Users")
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	result, err := userCollection.InsertOne(ctx, newUser)
-	if err != nil {
-		// return bad json.
-		c.JSON(500, gin.H{"error": err.Error()})
+	// Checks if there already contains a user with this username.
+	foundUserCursor := userCollection.FindOne(ctx, bson.M{"username": newUser.Username})
+	if foundUserCursor.Err() == nil {
+		c.JSON(500, gin.H{"error": "Username already exists."})
 	}
+
+	newUser.Password = EncryptAES(newUser.Password)
+	result, err := userCollection.InsertOne(ctx, newUser)
 	c.JSON(200, UserToken{TokenID: result.InsertedID.(primitive.ObjectID),
 		Username: newUser.Username})
 }
