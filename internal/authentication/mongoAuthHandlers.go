@@ -24,7 +24,7 @@ type APIHandler struct {
 
 func (this *APIHandler) SignupEndpoint(c *gin.Context) {
 	var newUser User
-
+	c.Request.Header.Add("Access-Control-Allow-Origin", "*")
 	err := c.BindJSON(&newUser)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
@@ -46,6 +46,8 @@ func (this *APIHandler) SignupEndpoint(c *gin.Context) {
 }
 
 func (this *APIHandler) SigninEndpoint(c *gin.Context) {
+	c.Request.Header.Add("Access-Control-Allow-Origin", "*")
+
 	type mongoResult struct {
 		ID       primitive.ObjectID `bson:"_id, omitempty"`
 		Username string             `json:"username,omitempty" validate:"required"`
