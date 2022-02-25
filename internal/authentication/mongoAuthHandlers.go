@@ -2,7 +2,6 @@ package authentication
 
 import (
 	"context"
-	"fmt"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -49,21 +48,19 @@ func (this *APIHandler) SigninEndpoint(c *gin.Context) {
 		Username string             `json:"username,omitempty" validate:"required"`
 		Password string             `json:"password,omitempty" validate:"required"`
 	}
-	var requestUser User
-	err := c.BindJSON(&requestUser)
-	if err != nil {
-		c.JSON(404, gin.H{"error": err.Error()})
+	var requestUser = User{
+		Username: c.Query("username"),
+		Password: c.Query("password"),
 	}
-	fmt.Printf("%s\n", requestUser.Password)
 	userCollection := this.MongoClient.Database("photoInspo").Collection("Users")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	foundUserCursor := userCollection.FindOne(ctx, bson.M{"username": requestUser.Username})
 	if foundUserCursor.Err() != nil {
-		c.JSON(500, gin.H{"error": err.Error()})
+		c.JSON(500, gin.H{"error": foundUserCursor.Err()})
 	}
 	var foundUser mongoResult
-	err = foundUserCursor.Decode(&foundUser)
+	err := foundUserCursor.Decode(&foundUser)
 	if err != nil {
 		c.JSON(404, gin.H{"error": err.Error()})
 	}
