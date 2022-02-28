@@ -22,9 +22,23 @@ type APIHandler struct {
 	MongoClient *mongo.Client
 }
 
+type Photo struct {
+	Src             string `json:"src,omitempty"`
+	AltText         string `json:"altText,omitempty"`
+	Photographer    string `json:"photographer,omitempty"`
+	PhotographerURL string `json:"photographerURL,omitempty"`
+	Id              string `json:"id,omitempty"`
+}
+type Moodboard struct {
+	UserName       string  `json:"username,omitempty" validate:"required"`
+	Name           string  `json:"name,omitempty" validate:"required"`
+	Images         []Photo `json:"images,omitempty" validate:"required"`
+	DefaultImageId string  `json:"defaultImageId,omitempty"`
+}
+
 func (this *APIHandler) SignupEndpoint(c *gin.Context) {
 	var newUser User
-	c.Request.Header.Add("Access-Control-Allow-Origin", "*")
+	//c.Request.Header.Add("Access-Control-Allow-Origin", "*")
 	err := c.BindJSON(&newUser)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
@@ -46,7 +60,7 @@ func (this *APIHandler) SignupEndpoint(c *gin.Context) {
 }
 
 func (this *APIHandler) SigninEndpoint(c *gin.Context) {
-	c.Request.Header.Add("Access-Control-Allow-Origin", "*")
+	//c.Request.Header.Add("Access-Control-Allow-Origin", "*")
 
 	type mongoResult struct {
 		ID       primitive.ObjectID `bson:"_id, omitempty"`
@@ -74,4 +88,90 @@ func (this *APIHandler) SigninEndpoint(c *gin.Context) {
 	}
 	c.JSON(200, UserToken{TokenID: foundUser.ID,
 		Username: foundUser.Username})
+}
+
+func (this *APIHandler) SaveEndpoint(c *gin.Context) {
+	type RequestJSON struct {
+		UserName       string  `json:"username,omitempty" validate:"required"`
+		Name           string  `json:"name,omitempty" validate:"required"`
+		Images         []Photo `json:"images,omitempty" validate:"required"`
+		DefaultImageId string  `json:"defaultImageId,omitempty"`
+	}
+	var newMoodboardJSON RequestJSON
+	var newMoodboard Moodboard
+	//c.Request.Header.Add("Access-Control-Allow-Origin", "*")
+	err := c.BindJSON(&newMoodboardJSON)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+	}
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+	}
+	newMoodboard = Moodboard{
+		UserName:       newMoodboardJSON.UserName,
+		Name:           newMoodboardJSON.Name,
+		Images:         newMoodboardJSON.Images,
+		DefaultImageId: newMoodboardJSON.DefaultImageId,
+	}
+	moodboards := this.MongoClient.Database("photoInspo").Collection("Moodboards")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	count, err := moodboards.CountDocuments(ctx, bson.M{"username": newMoodboard.UserName, "name": newMoodboard.Name})
+	if err != nil {
+		c.JSON(500, gin.H{"error": err})
+	}
+	if count >= 1 {
+		c.JSON(400, gin.H{"error": "Moodboard already exists."})
+		c.Abort()
+		return
+	}
+
+	_, err = moodboards.InsertOne(ctx, newMoodboard)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err})
+	}
+	c.JSON(200, gin.H{"message": "success!"})
+}
+
+func (this *APIHandler) UpdateEndpoint(c *gin.Context) {
+	type RequestJSON struct {
+		UserName       string  `json:"username,omitempty" validate:"required"`
+		OldName        string  `json:"oldName,omitempty" validate:"required"`
+		Name           string  `json:"name,omitempty" validate:"required"`
+		Images         []Photo `json:"images,omitempty" validate:"required"`
+		DefaultImageId string  `json:"defaultImageId,omitempty"`
+	}
+	var newMoodboardJSON RequestJSON
+	var newMoodboard Moodboard
+	//c.Request.Header.Add("Access-Control-Allow-Origin", "*")
+	err := c.BindJSON(&newMoodboardJSON)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+	}
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+	}
+	newMoodboard = Moodboard{
+		UserName:       newMoodboardJSON.UserName,
+		Name:           newMoodboardJSON.Name,
+		Images:         newMoodboardJSON.Images,
+		DefaultImageId: newMoodboardJSON.DefaultImageId,
+	}
+	moodboards := this.MongoClient.Database("photoInspo").Collection("Moodboards")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	// Must update the document.
+	filter := bson.M{"name": newMoodboardJSON.OldName, "username": newMoodboard.UserName}
+	update := bson.D{{"$set", bson.D{
+		{"name", newMoodboard.Name},
+		{"images", newMoodboard.Images},
+		{"defaultimageid", newMoodboard.DefaultImageId},
+	}}}
+	_, err = moodboards.UpdateOne(ctx, filter, update)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+
+	}
+	c.JSON(200, gin.H{"message": "success!"})
 }
