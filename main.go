@@ -41,6 +41,7 @@ func main() {
 	router.GET("/login", apiHandler.SigninEndpoint)
 	router.POST("/save", apiHandler.SaveEndpoint)
 	router.POST("/update", apiHandler.UpdateEndpoint)
+	router.GET("/moodboards", apiHandler.GetMoodboardsEndpoint)
 	err = router.Run()
 	if err != nil {
 		log.Fatal(err)

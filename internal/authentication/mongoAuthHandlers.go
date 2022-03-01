@@ -175,3 +175,47 @@ func (this *APIHandler) UpdateEndpoint(c *gin.Context) {
 	}
 	c.JSON(200, gin.H{"message": "success!"})
 }
+
+func (this *APIHandler) GetMoodboardsEndpoint(c *gin.Context) {
+	type ResponseJSON struct {
+		Count      int         `json:"count"`
+		Moodboards []Moodboard `json:"moodboards"`
+	}
+
+	username := c.Query("username")
+	moodboards := this.MongoClient.Database("photoInspo").Collection("Moodboards")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	var resultMoodboards []Moodboard
+	filter := bson.M{"username": username}
+
+	cursor, err := moodboards.Find(ctx, filter)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		c.Abort()
+		return
+	}
+	for cursor.Next(ctx) {
+		var moodboard Moodboard
+		err := cursor.Decode(&moodboard)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			c.Abort()
+			return
+		}
+		resultMoodboards = append(resultMoodboards, moodboard)
+	}
+	if err := cursor.Err(); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		c.Abort()
+		return
+	}
+	err = cursor.Close(ctx)
+	if err != nil {
+		return
+	}
+	c.JSON(200, ResponseJSON{
+		Count:      len(resultMoodboards),
+		Moodboards: resultMoodboards,
+	})
+}
