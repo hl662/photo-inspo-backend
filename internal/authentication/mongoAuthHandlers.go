@@ -2,6 +2,7 @@ package authentication
 
 import (
 	"context"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -38,7 +39,6 @@ type Moodboard struct {
 
 func (this *APIHandler) SignupEndpoint(c *gin.Context) {
 	var newUser User
-	//c.Request.Header.Add("Access-Control-Allow-Origin", "*")
 	err := c.BindJSON(&newUser)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
@@ -60,7 +60,6 @@ func (this *APIHandler) SignupEndpoint(c *gin.Context) {
 }
 
 func (this *APIHandler) SigninEndpoint(c *gin.Context) {
-	//c.Request.Header.Add("Access-Control-Allow-Origin", "*")
 
 	type mongoResult struct {
 		ID       primitive.ObjectID `bson:"_id, omitempty"`
@@ -99,7 +98,6 @@ func (this *APIHandler) SaveEndpoint(c *gin.Context) {
 	}
 	var newMoodboardJSON RequestJSON
 	var newMoodboard Moodboard
-	//c.Request.Header.Add("Access-Control-Allow-Origin", "*")
 	err := c.BindJSON(&newMoodboardJSON)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
@@ -144,7 +142,6 @@ func (this *APIHandler) UpdateEndpoint(c *gin.Context) {
 	}
 	var newMoodboardJSON RequestJSON
 	var newMoodboard Moodboard
-	//c.Request.Header.Add("Access-Control-Allow-Origin", "*")
 	err := c.BindJSON(&newMoodboardJSON)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
@@ -171,7 +168,6 @@ func (this *APIHandler) UpdateEndpoint(c *gin.Context) {
 	_, err = moodboards.UpdateOne(ctx, filter, update)
 	if err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
-
 	}
 	c.JSON(200, gin.H{"message": "success!"})
 }
@@ -218,4 +214,31 @@ func (this *APIHandler) GetMoodboardsEndpoint(c *gin.Context) {
 		Count:      len(resultMoodboards),
 		Moodboards: resultMoodboards,
 	})
+}
+
+func (this *APIHandler) DeleteEndpoint(c *gin.Context) {
+	type RequestJSON struct {
+		UserName string `json:"username,omitempty" validate:"required"`
+		Name     string `json:"name,omitempty" validate:"required"`
+	}
+	var request RequestJSON
+	err := c.BindJSON(&request)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+	}
+	moodboards := this.MongoClient.Database("photoInspo").Collection("Moodboards")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	filter := bson.M{"name": request.Name, "username": request.UserName}
+	res, err := moodboards.DeleteOne(ctx, filter)
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+	}
+	if res.DeletedCount == 0 {
+		c.JSON(400, gin.H{"error": "Moodboard not found."})
+		c.Abort()
+		return
+	}
+	c.JSON(200, gin.H{"message": fmt.Sprintf("Deleted %d moodboard.", res.DeletedCount)})
 }
