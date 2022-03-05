@@ -50,7 +50,7 @@ func (this *APIHandler) SignupEndpoint(c *gin.Context) {
 	// Checks if there already contains a user with this username.
 	foundUserCursor := userCollection.FindOne(ctx, bson.M{"username": newUser.Username})
 	if foundUserCursor.Err() == nil {
-		c.JSON(500, gin.H{"error": "Username already exists."})
+		c.JSON(400, gin.H{"error": "Username already exists."})
 	}
 
 	newUser.Password = EncryptAES(newUser.Password)
@@ -75,7 +75,7 @@ func (this *APIHandler) SigninEndpoint(c *gin.Context) {
 	defer cancel()
 	foundUserCursor := userCollection.FindOne(ctx, bson.M{"username": requestUser.Username})
 	if foundUserCursor.Err() != nil {
-		c.JSON(500, gin.H{"error": foundUserCursor.Err()})
+		c.JSON(400, gin.H{"error": "No user found."})
 	}
 	var foundUser mongoResult
 	err := foundUserCursor.Decode(&foundUser)
